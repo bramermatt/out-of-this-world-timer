@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>World Timer // Mission Control</title>
+
+    <style>
+        /* =========================================
+           1. DESIGN SYSTEM
+        ========================================= */
+
+        :root {
+            --background: #080d14;
+            --panel: #101925;
+            --panel-light: #152130;
+            --border: #27364a;
+            --text: #e5edf7;
+            --muted: #8494aa;
+            --green: #66f2ad;
+            --cyan: #65d9f4;
+            --orange: #ffb86b;
+            --red: #ff707d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--background);
+            color: var(--text);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono",
+                         Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        button:focus-visible {
+            outline: 2px solid var(--cyan);
+            outline-offset: 3px;
+        }
+
+        .container {
+            width: min(1200px, 100%);
+            margin: 0 auto;
+            padding: 32px 24px 48px;
+        }
+
+        /* =========================================
+           2. HEADER
+        ========================================= */
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            padding-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .eyebrow {
+            color: var(--green);
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 12px 0 8px;
+            font-size: clamp(25px, 4vw, 42px);
+            font-weight: 700;
+            letter-spacing: -2px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 8px;
+            color: var(--green);
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 10px #66f2ad66;
+        }
+
+        /* =========================================
+           3. SECTION HEADINGS
+        ========================================= */
+
+        .section-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin: 32px 0 16px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .section-label {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-align: right;
+        }
+
+        /* =========================================
+           4. CLOCK CARDS
+        ========================================= */
+
+        .clock-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .clock-card {
+            position: relative;
+            min-width: 0;
+            padding: 22px;
+            overflow: hidden;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .clock-card.local {
+            border-color: #66f2ad66;
+        }
+
+        .clock-card.local::before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--green);
+            content: "";
+        }
+
+        .city-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .city-name {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .city-country {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .city-code {
+            color: var(--cyan);
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .city-badge {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 4px 6px;
+            color: var(--green);
+            background: #66f2ad12;
+            border: 1px solid #66f2ad35;
+            border-radius: 3px;
+            font-size: 9px;
+            letter-spacing: 1px;
+        }
+
+        .clock-time {
+            margin: 24px 0 10px;
+            font-size: clamp(23px, 3vw, 35px);
+            font-weight: 600;
+            letter-spacing: -1.5px;
+            white-space: nowrap;
+        }
+
+        .clock-date {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .clock-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .day-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* =========================================
+           5. UTC PANEL
+        ========================================= */
+
+        .utc-panel {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 20px;
+            padding: 24px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--cyan);
+            border-radius: 5px;
+        }
+
+        .utc-title {
+            color: var(--cyan);
+            font-size: 11px;
+            letter-spacing: 2px;
+        }
+
+        .utc-description {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .utc-time {
+            font-size: clamp(26px, 5vw, 44px);
+            letter-spacing: -2px;
+            white-space: nowrap;
+        }
+
+        /* =========================================
+           6. ISS TRACKING PANEL
+        ========================================= */
+
+        .iss-panel {
+            padding: 24px;
+            background:
+                linear-gradient(135deg, #111e2b, #0b121d 75%);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .iss-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .iss-title {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .iss-subtitle {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .iss-live {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--orange);
+            font-size: 10px;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .iss-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .iss-stat {
+            padding: 16px;
+            background: #080d1470;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .iss-stat-label {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .iss-stat-value {
+            margin-top: 12px;
+            color: var(--green);
+            font-size: clamp(18px, 2.5vw, 27px);
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        .iss-stat-unit {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .iss-message {
+            margin-top: 18px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .iss-link {
+            color: var(--cyan);
+            text-decoration: none;
+        }
+
+        .iss-link:hover {
+            text-decoration: underline;
+        }
+
+        /* =========================================
+           7. FOOTER AND CONTROLS
+        ========================================= */
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-button {
+            padding: 9px 12px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toggle-button:hover {
+            border-color: var(--cyan);
+        }
+
+        footer {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 800px) {
+            .clock-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .iss-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 520px) {
+            .container {
+                padding: 24px 14px 32px;
+            }
+
+            header {
+                flex-direction: column;
+            }
+
+            .clock-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .clock-time {
+                font-size: 34px;
+            }
+
+            .utc-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .utc-time {
+                font-size: 36px;
+            }
+
+            .iss-header {
+                flex-direction: column;
+            }
+
+            .iss-grid {
+                gap: 8px;
+            }
+
+            .iss-stat {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- =========================================
+         HEADER
+    ========================================== -->
+
+    <header>
+        <div>
+            <div class="eyebrow">Bramer Labs / Utility 001</div>
+
+            <h1>WORLD TIMER<span style="color: var(--green)">.</span></h1>
+
+            <div class="subtitle">
+                GLOBAL TIMEKEEPING & ORBITAL AWARENESS<br>
+                ALL TIMES UPDATE AUTOMATICALLY
+            </div>
+        </div>
+
+        <div>
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span id="system-status">CLOCK SYSTEM ONLINE</span>
+            </div>
+
+            <div class="subtitle" style="margin-top: 10px; text-align: right;">
+                LOCAL SYSTEM TIME<br>
+                <span id="system-date">INITIALIZING...</span>
+            </div>
+        </div>
+    </header>
+
+
+    <!-- =========================================
+         WORLD CLOCKS
+    ========================================== -->
+
+    <div class="section-heading">
+        <h2>01 / World Clocks</h2>
+
+        <div class="toolbar">
+            <span class="section-label">LIVE TIME</span>
+
+            <button
+                type="button"
+                class="toggle-button"
+                id="format-toggle"
+                aria-label="Switch between 12-hour and 24-hour time"
+            >
+                24H
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <div class="clock-grid" id="clock-grid">
+
+            <!-- JavaScript generates clock cards here. -->
+
+        </div>
+    </main>
+
+
+    <!-- =========================================
+         UTC REFERENCE
+    ========================================== -->
+
+    <div class="section-heading">
+        <h2>02 / Universal Reference</h2>
+        <span class="section-label">COORDINATED UNIVERSAL TIME</span>
+    </div>
+
+    <section class="utc-panel" aria-label="UTC reference clock">
+
+        <div>
+            <div class="utc-title">UTC // ZULU TIME</div>
+
+            <div class="utc-description">
+                The global reference for aviation, science, and spaceflight.
+                The International Space Station uses UTC for station operations.
+            </div>
+        </div>
+
+        <div class="utc-time" id="utc-time" aria-live="off">
+            --:--:--
+        </div>
+
+    </section>
+
+
+    <!-- =========================================
+         INTERNATIONAL SPACE STATION
+    ========================================== -->
+
+    <div class="section-heading">
+        <h2>03 / Orbital Tracking</h2>
+        <span class="section-label">OBJECT 25544</span>
+    </div>
+
+    <section class="iss-panel" aria-label="International Space Station tracking">
+
+        <div class="iss-header">
+            <div>
+                <h3 class="iss-title">
+                    INTERNATIONAL SPACE STATION
+                </h3>
+
+                <div class="iss-subtitle">
+                    LOW EARTH ORBIT / HUMAN SPACEFLIGHT<br>
+                    REFERENCE TIME: UTC
+                </div>
+            </div>
+
+            <div class="iss-live">
+                <span class="status-dot" id="iss-status-dot"
+                      style="background: var(--orange)"></span>
+                <span id="iss-status">CONNECTING</span>
+            </div>
+        </div>
+
+        <div class="iss-grid">
+
+            <div class="iss-stat">
+                <div class="iss-stat-label">LATITUDE</div>
+                <div class="iss-stat-value" id="iss-lat">--</div>
+                <div class="iss-stat-unit">DEGREES</div>
+            </div>
+
+            <div class="iss-stat">
+                <div class="iss-stat-label">LONGITUDE</div>
+                <div class="iss-stat-value" id="iss-lon">--</div>
+                <div class="iss-stat-unit">DEGREES</div>
+            </div>
+
+            <div class="iss-stat">
+                <div class="iss-stat-label">ALTITUDE</div>
+                <div class="iss-stat-value" id="iss-alt">--</div>
+                <div class="iss-stat-unit">KILOMETERS</div>
+            </div>
+
+            <div class="iss-stat">
+                <div class="iss-stat-label">VELOCITY</div>
+                <div class="iss-stat-value" id="iss-velocity">--</div>
+                <div class="iss-stat-unit">KM/H</div>
+            </div>
+
+        </div>
+
+        <div class="iss-message" id="iss-message" aria-live="polite">
+            Requesting orbital telemetry...
+        </div>
+
+        <div class="iss-message">
+            DATA SOURCE:
+            <a
+                class="iss-link"
+                href="https://wheretheiss.at/"
+                target="_blank"
+                rel="noopener noreferrer"
+            >WHERE THE ISS AT API</a>
+            · Position data is approximate and depends on API availability.
+        </div>
+
+    </section>
+
+
+    <!-- =========================================
+         FOOTER
+    ========================================== -->
+
+    <footer>
+        <div>
+            WORLD TIMER v1.0<br>
+            BUILT WITH HTML / CSS / JAVASCRIPT
+        </div>
+
+        <div style="text-align: right">
+            TIME ZONES: IANA DATABASE<br>
+            <span id="last-updated">WAITING FOR CLOCK...</span>
+        </div>
+    </footer>
+
+</div>
+
+
+<script>
+    /* =========================================
+       1. CONFIGURATION
+    ========================================= */
+
+    const cities = [
+        {
+            name: "Jeffersonville",
+            country: "Indiana, United States",
+            timezone: "America/Indiana/Indianapolis",
+            code: "HOME",
+            local: true
+        },
+        {
+            name: "New York",
+            country: "United States",
+            timezone: "America/New_York",
+            code: "EDT / EST"
+        },
+        {
+            name: "Los Angeles",
+            country: "United States",
+            timezone: "America/Los_Angeles",
+            code: "PDT / PST"
+        },
+        {
+            name: "London",
+            country: "United Kingdom",
+            timezone: "Europe/London",
+            code: "GMT / BST"
+        },
+        {
+            name: "Paris",
+            country: "France",
+            timezone: "Europe/Paris",
+            code: "CET / CEST"
+        },
+        {
+            name: "Jerusalem",
+            country: "Israel",
+            timezone: "Asia/Jerusalem",
+            code: "ISRAEL TIME"
+        },
+        {
+            name: "Moscow",
+            country: "Russia",
+            timezone: "Europe/Moscow",
+            code: "MSK"
+        },
+        {
+            name: "Tokyo",
+            country: "Japan",
+            timezone: "Asia/Tokyo",
+            code: "JST"
+        },
+        {
+            name: "Sydney",
+            country: "Australia",
+            timezone: "Australia/Sydney",
+            code: "AEST / AEDT"
+        },
+        {
+            name: "Auckland",
+            country: "New Zealand",
+            timezone: "Pacific/Auckland",
+            code: "NZST / NZDT"
+        }
+    ];
+
+    let use24Hour = true;
+
+
+    /* =========================================
+       2. HELPER FUNCTIONS
+    ========================================= */
+
+    function getTimeZoneOffset(timezone, date = new Date()) {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            timeZoneName: "shortOffset"
+        }).formatToParts(date);
+
+        return parts.find(part => part.type === "timeZoneName")?.value
+            || "Local offset";
+    }
+
+
+    function getTime(timezone, date = new Date()) {
+        return new Intl.DateTimeFormat("en-GB", {
+            timeZone: timezone,
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: !use24Hour
+        }).format(date);
+    }
+
+
+    function getDate(timezone, date = new Date()) {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+        }).format(date);
+    }
+
+
+    function getDayPeriod(timezone, date = new Date()) {
+        const hour = Number(
+            new Intl.DateTimeFormat("en-GB", {
+                timeZone: timezone,
+                hour: "2-digit",
+                hourCycle: "h23"
+            }).format(date)
+        );
+
+        return hour >= 6 && hour < 18 ? "DAYTIME" : "NIGHTTIME";
+    }
+
+
+    function getLocalDateTime(timezone, date = new Date()) {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+        }).format(date);
+    }
+
+
+    /* =========================================
+       3. BUILD THE CLOCK CARDS
+    ========================================= */
+
+    function buildClocks() {
+        const grid = document.getElementById("clock-grid");
+
+        grid.innerHTML = "";
+
+        cities.forEach((city, index) => {
+            const card = document.createElement("article");
+
+            card.className = "clock-card" + (city.local ? " local" : "");
+
+            card.innerHTML = `
+                <div class="city-top">
+                    <div>
+                        <h3 class="city-name">${city.name}</h3>
+                        <div class="city-country">${city.country}</div>
+                    </div>
+
+                    <div class="city-code">${city.code}</div>
+                </div>
+
+                ${city.local
+                    ? '<span class="city-badge">LOCAL TIME</span>'
+                    : ''
+                }
+
+                <div
+                    class="clock-time"
+                    id="clock-time-${index}"
+                    aria-label="${city.name} local time"
+                >--:--:--</div>
+
+                <div
+                    class="clock-date"
+                    id="clock-date-${index}"
+                >Loading date...</div>
+
+                <div class="clock-footer">
+                    <span class="day-status">
+                        <span id="day-icon-${index}">◷</span>
+                        <span id="day-status-${index}">CHECKING</span>
+                    </span>
+
+                    <span id="offset-${index}">UTC</span>
+                </div>
+            `;
+
+            grid.appendChild(card);
+        });
+    }
+
+
+    /* =========================================
+       4. UPDATE ALL CLOCKS
+    ========================================= */
+
+    function updateClocks() {
+        const now = new Date();
+
+        cities.forEach((city, index) => {
+            document.getElementById(`clock-time-${index}`).textContent =
+                getTime(city.timezone, now);
+
+            document.getElementById(`clock-date-${index}`).textContent =
+                getDate(city.timezone, now);
+
+            const period = getDayPeriod(city.timezone, now);
+
+            document.getElementById(`day-status-${index}`).textContent =
+                period;
+
+            document.getElementById(`day-icon-${index}`).textContent =
+                period === "DAYTIME" ? "☀" : "☾";
+
+            document.getElementById(`offset-${index}`).textContent =
+                getTimeZoneOffset(city.timezone, now);
+        });
+
+        document.getElementById("utc-time").textContent =
+            getTime("UTC", now);
+
+        document.getElementById("system-date").textContent =
+            getDate(Intl.DateTimeFormat().resolvedOptions().timeZone, now)
+            + " · "
+            + getTime(Intl.DateTimeFormat().resolvedOptions().timeZone, now);
+
+        document.getElementById("last-updated").textContent =
+            "LAST REFRESH: " + getTime("UTC", now) + " UTC";
+    }
+
+
+    /* =========================================
+       5. 12-HOUR / 24-HOUR TOGGLE
+    ========================================= */
+
+    document.getElementById("format-toggle").addEventListener(
+        "click",
+        function () {
+            use24Hour = !use24Hour;
+
+            this.textContent = use24Hour ? "24H" : "12H";
+
+            updateClocks();
+        }
+    );
+
+
+    /* =========================================
+       6. INTERNATIONAL SPACE STATION
+    ========================================= */
+
+    const iss = {
+        latitude: document.getElementById("iss-lat"),
+        longitude: document.getElementById("iss-lon"),
+        altitude: document.getElementById("iss-alt"),
+        velocity: document.getElementById("iss-velocity"),
+        status: document.getElementById("iss-status"),
+        dot: document.getElementById("iss-status-dot"),
+        message: document.getElementById("iss-message")
+    };
+
+    let lastSuccessfulIssUpdate = null;
+    let issRequestInProgress = false;
+
+    async function updateISS() {
+        if (issRequestInProgress) return;
+
+        issRequestInProgress = true;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        try {
+            const response = await fetch(
+                "https://api.wheretheiss.at/v1/satellites/25544",
+                {
+                    signal: controller.signal,
+                    cache: "no-store"
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`API returned HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            const latitude = Number(data.latitude);
+            const longitude = Number(data.longitude);
+            const altitude = Number(data.altitude);
+            const velocity = Number(data.velocity);
+
+            if (![latitude, longitude, altitude, velocity].every(Number.isFinite)) {
+                throw new Error("The API returned invalid position data.");
+            }
+
+            iss.latitude.textContent = latitude.toFixed(2) + "°";
+            iss.longitude.textContent = longitude.toFixed(2) + "°";
+            iss.altitude.textContent = altitude.toFixed(1);
+            iss.velocity.textContent = Math.round(velocity).toLocaleString("en-US");
+
+            lastSuccessfulIssUpdate = Date.now();
+
+            iss.status.textContent = "LIVE TELEMETRY";
+            iss.dot.style.background = "var(--green)";
+            iss.dot.style.boxShadow = "0 0 10px #66f2ad66";
+
+            iss.message.textContent =
+                "Position received successfully. Last updated " +
+                new Date().toLocaleTimeString() +
+                ". Telemetry refreshes approximately every 10 seconds.";
+
+        } catch (error) {
+            console.error("ISS telemetry error:", error);
+
+            if (lastSuccessfulIssUpdate !== null) {
+                iss.status.textContent = "STALE DATA";
+                iss.dot.style.background = "var(--orange)";
+
+                iss.message.textContent =
+                    "Unable to refresh telemetry. Showing the last successful " +
+                    "position from " +
+                    new Date(lastSuccessfulIssUpdate).toLocaleTimeString() +
+                    ". The displayed coordinates are not necessarily current.";
+            } else {
+                iss.status.textContent = "OFFLINE";
+                iss.dot.style.background = "var(--red)";
+
+                iss.message.textContent =
+                    "Live telemetry is unavailable. Check your internet connection " +
+                    "or open this file through a local web server if your browser " +
+                    "restricts requests from local files. The world clocks still work.";
+            }
+        } finally {
+            clearTimeout(timeout);
+            issRequestInProgress = false;
+        }
+    }
+
+
+    /* =========================================
+       7. START THE APPLICATION
+    ========================================= */
+
+    buildClocks();
+    updateClocks();
+    updateISS();
+
+    // Refresh the clocks every second.
+    setInterval(updateClocks, 1000);
+
+    // Refresh ISS orbital telemetry every 10 seconds.
+    setInterval(updateISS, 10000);
+
+</script>
+
+</body>
+</html>
